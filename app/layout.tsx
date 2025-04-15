@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { BenefitsProvider } from '@/providers/benefits-provider';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { NuqsAdapter } from 'nuqs/adapters/next/app'
+import { Analytics } from "@vercel/analytics/react"
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -41,6 +42,8 @@ export default function RootLayout({
           <BenefitsProvider>
             <NuqsAdapter>
               {children}
+              <Analytics />
+
             </NuqsAdapter>
             {process.env.NODE_ENV === 'development' && <ReactQueryDevtools />}
           </BenefitsProvider>
