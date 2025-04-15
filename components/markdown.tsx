@@ -74,7 +74,7 @@ const TableWrapper = ({ children }: { children: React.ReactNode }) => {
         <div 
           ref={scrollContainerRef}
           onScroll={checkScroll}
-          className="max-w-full overflow-auto rounded-lg border border-border shadow-sm"
+          className="max-w-full overflow-auto rounded-lg border border-border shadow-md"
         >
           <div className="min-w-max">
             {children}
