@@ -52,12 +52,13 @@ export function ChatSection({
                 alt="Stoller Logo"
                 width={160}
                 height={40}
+                className="mt-2"
               />
             </div>
 
             <div className="flex flex-col items-center w-full">
-              <h1 className="text-5xl md:text-6xl font-bold mb-4 md:mb-8 text-center">
-                Ask me anything about the research
+              <h1 className="text-5xl md:text-6xl font-bold mb-4 md:mb-8 text-center text-balance">
+                Ask me anything about the engagement
               </h1>
               <div className="space-y-8 max-w-2xl w-full">
                 {/* Chat Input */}
@@ -71,32 +72,31 @@ export function ChatSection({
                     hideFileUpload
                   />
                 </div>
-
                 {/* Example Questions */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <button 
-                    onClick={() => handleExampleClick("What was the methodology of this study?")}
+                    onClick={() => handleExampleClick("Tell me more about the recommended grant management system")}
                     className="text-left p-4 rounded-lg border bg-background/50 hover:bg-background/80 transition-colors"
                   >
-                    What was the methodology of this study?
+                    Tell me more about the recommended grant management system
                   </button>
                   <button 
-                    onClick={() => handleExampleClick("What were the key takeaways from brazil?")}
+                    onClick={() => handleExampleClick("Tell me more about the project management office")}
                     className="text-left p-4 rounded-lg border bg-background/50 hover:bg-background/80 transition-colors"
                   >
-                    What were the key takeaways from brazil?
+                    Tell me more about the project management office
                   </button>
                   <button 
-                    onClick={() => handleExampleClick("What's the market demand for this?")}
+                    onClick={() => handleExampleClick("Tell me more about grantee solutions")}
                     className="text-left p-4 rounded-lg border bg-background/50 hover:bg-background/80 transition-colors"
                   >
-                    What&apos;s the market demand for this?
+                    Tell me more about grantee solutions
                   </button>
                   <button 
-                    onClick={() => handleExampleClick("What would be the go-to-market strategy?")}
+                    onClick={() => handleExampleClick("Which vendors were considered for the grant management system")}
                     className="text-left p-4 rounded-lg border bg-background/50 hover:bg-background/80 transition-colors"
                   >
-                    What would be the go-to-market strategy?
+                    Which vendors were considered for the grant management system
                   </button>
                 </div>
 

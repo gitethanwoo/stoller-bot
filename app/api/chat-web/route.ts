@@ -10,10 +10,10 @@ const COSTS = {
     cachedInput: 1.25,
     output: 10.00,
   },
-  'gpt-4o-mini': {
-    input: 0.150,
-    cachedInput: 0.075,
-    output: 0.600,
+  'gpt-4.1-mini': {
+    input: 0.400,
+    cachedInput: 0.10,
+    output: 0.160,
   },
   'o3-mini': {
     input: 1.10,

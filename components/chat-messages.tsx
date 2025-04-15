@@ -23,6 +23,28 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
+function LoadingSequence() {
+  const loadingStates = [
+    "Searching...",
+    "Thinking...",
+    "Formulating an answer...",
+    "Building a response...",
+    "Adding detail..."
+  ];
+  
+  const [currentIndex, setCurrentIndex] = useState(0);
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentIndex((prevIndex) => (prevIndex + 1) % loadingStates.length);
+    }, 12000);
+    
+    return () => clearInterval(interval);
+  }, []);
+  
+  return <span className="animate-pulse">{loadingStates[currentIndex]}</span>;
+}
+
 interface ChatMessagesProps {
   messages: Message[];
   isLoading: boolean;
@@ -69,7 +91,7 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
   return (
     <div 
       ref={messagesEndRef}
-      className="h-full overflow-y-auto"
+      className="h-full overflow-y-auto overflow-x-hidden"
     >
       <div className="max-w-2xl mx-auto w-full px-4 py-4 space-y-6">
         {messages.map((message, index) => (
@@ -120,13 +142,15 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
                 className={cn(
                   message.role === "user"
                     ? "bg-blue-100 text-black dark:text-white dark:bg-blue-500 px-5 py-2.5 rounded-3xl max-w-[70%] my-1"
-                    : "rounded-lg w-full py-1",
+                    : "rounded-lg w-full py-1 max-w-full overflow-hidden",
                   isLoading && 
                     index === messages.length - 1 && 
                     "animate-fade-in opacity-0"
                 )}
               >
-                <Markdown>{message.content}</Markdown>
+                <div className="overflow-x-hidden max-w-full">
+                  <Markdown>{message.content}</Markdown>
+                </div>
                 {message.role === "assistant" && (
                   <div className="flex justify-start mt-2">
                     <CopyButton text={message.content} />
@@ -145,7 +169,7 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
               </span>
             </div>
             <div className="rounded-lg w-full py-1">
-              <span className="animate-pulse">Thinking...</span>
+              <LoadingSequence />
             </div>
           </div>
         )}

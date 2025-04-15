@@ -207,6 +207,9 @@ const components: Partial<Components> = {
       {children}
     </td>
   ),
+  hr: () => (
+    <hr className="border-t border-gray-200 my-6" />
+  ),
 };
 
 const remarkPlugins = [remarkGfm];
