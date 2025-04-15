@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image"
+
 import React from "react";
 import { Message } from "ai";
 import { ChatMessages } from "@/components/chat-messages";
