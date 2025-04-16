@@ -10,7 +10,6 @@ import { ChatInput } from "@/components/ui/chat-input";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { FileData } from "@/types/file-data";
-import { StoredDocument } from "@/app/manage/types";
 
 
 interface ChatSidebarProps {
@@ -18,7 +17,6 @@ interface ChatSidebarProps {
     setIsOpen: (isOpen: boolean) => void;
     selectedDocuments?: FileData[];
     showFileInput?: boolean;
-    benefitsData: StoredDocument[];
 }
 
 const markdownComponents: Components = {
@@ -47,7 +45,6 @@ const markdownComponents: Components = {
 export function ChatSidebar({
     isOpen,
     setIsOpen,
-    benefitsData = [],
 }: ChatSidebarProps) {
     const [files, setFiles] = useState<FileList | undefined>(undefined);
     const fileInputRef = useRef<HTMLInputElement>(null);

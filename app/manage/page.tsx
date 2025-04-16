@@ -36,18 +36,13 @@ export default function TestEnrich() {
 
   const { benefits, mutate } = useBenefits();
   
-  // Convert benefits array to record structure using index as part of key
   const currentDocs = useMemo(() => {
     return benefits.reduce((acc: Record<string, StoredDocument>, doc: StoredDocument, index: number) => {
-      // Use the Redis key if available, otherwise fall back to generated key
       const key = doc.redisKey || `${doc.title}_${index}`;
       acc[key] = doc;
       return acc;
     }, {});
   }, [benefits]);
-
-  // Use the original documents for the chat sidebar
-  const benefitsForChat: StoredDocument[] = Object.values(currentDocs);
 
   const handleUploadToUpstash = async (enrichedResult: EnrichedResult) => {
     try {
@@ -263,7 +258,6 @@ export default function TestEnrich() {
         isOpen={isChatOpen}
         setIsOpen={setIsChatOpen}
         showFileInput={false}
-        benefitsData={benefitsForChat}
         selectedDocuments={[]}
       />
     </div>

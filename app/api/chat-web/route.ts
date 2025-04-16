@@ -13,15 +13,6 @@ const vectorIndex = new Index({
   token: process.env.UPSTASH_VECTOR_REST_TOKEN!,
 });
 
-const BenefitsDataSchema = z
-  .array(
-    z.object({
-      documentTitle: z.string(),
-      documentContext: z.string(),
-    })
-  )
-  .default([]);
-
 // Add type safety for request body
 const RequestSchema = z.object({
   messages: z.array(
@@ -39,7 +30,6 @@ const RequestSchema = z.object({
         .optional(),
     })
   ),
-  benefitsData: BenefitsDataSchema,
 });
 
 const SYSTEM_PROMPT = `# Role and Purpose

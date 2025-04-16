@@ -4,7 +4,6 @@ import { Suspense } from "react"
 import { ChatSection } from "@/components/welcome/chat"
 import { WelcomeLayout } from "@/components/welcome/layout"
 import { useChat } from "ai/react"
-import { useBenefits } from "@/providers/benefits-provider"
 import { useState } from "react"
 
 function Loading() {
@@ -14,7 +13,6 @@ function Loading() {
 function WelcomePage() {
   const [hasInteracted, setHasInteracted] = useState(false);
   const [isChatMinimized, setIsChatMinimized] = useState(false);
-  const { benefits } = useBenefits();
 
   const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
     api: "/api/chat-web",
