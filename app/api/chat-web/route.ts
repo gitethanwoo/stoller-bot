@@ -3,6 +3,7 @@ import { OpenAI } from "openai";
 import { Index } from "@upstash/vector";
 import { streamText, convertToCoreMessages, smoothStream, tool } from "ai";
 import { z } from "zod";
+import { Redis } from "@upstash/redis";
 
 // Initialize OpenAI client for embeddings
 const openai = new OpenAI();
@@ -11,6 +12,12 @@ const openai = new OpenAI();
 const vectorIndex = new Index({
   url: process.env.UPSTASH_VECTOR_REST_URL!,
   token: process.env.UPSTASH_VECTOR_REST_TOKEN!,
+});
+
+// Initialize Redis client
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
 });
 
 // Add type safety for request body
@@ -39,6 +46,7 @@ You are a knowledgeable chatbot assistant named StollerBot dedicated to providin
 - PERSISTENCE: Keep going until the user's query is completely resolved. Only end your turn when you have provided a complete answer.
 - TOOL USAGE: For EVERY user question, you should ALWAYS search the knowledge base first using the searchKnowledgeBase tool. If you are not sure about any information, use this tool: do NOT guess or make up an answer.
 - PLANNING: Before searching, take a moment to formulate an effective search query. After receiving search results, carefully analyze them before constructing your response.
+- ATTRIBUTION: Always cite your sources at the end of your response in the Source Attribution section.
 
 # Information Guidelines
 - Only provide information that is found in the search results.
@@ -73,6 +81,15 @@ You are a knowledgeable chatbot assistant named StollerBot dedicated to providin
     |-------|------------|-------------|
     | PBS | Sponsorship-based | Free for all |
 
+## Source Attribution
+- At the end of your response, include a "Sources:" section with the titles of documents you referenced
+- Format as:
+  * ### Sources
+  * * [Document Title 1]
+  * * [Document Title 2]
+- Only cite sources that you actually used in your response
+- If the document title is unclear or missing, use the document ID
+
 ## Readability
 - Break up dense text into smaller paragraphs
 - Use bold (**text**) for emphasis, not for structure
@@ -83,7 +100,7 @@ You are a knowledgeable chatbot assistant named StollerBot dedicated to providin
   * Bullet points for main topics (use headers instead)
   * Special characters or symbols for formatting (stick to standard markdown)`;
 
-// Function to search the vector database
+// Function to search the vector database and retrieve full documents
 async function searchKnowledgeBase(query: string, limit: number = 5) {
   try {
     // Generate embedding for the query
@@ -96,13 +113,59 @@ async function searchKnowledgeBase(query: string, limit: number = 5) {
     const embedding = response.data[0].embedding;
     
     // Search Upstash Vector
-    const results = await vectorIndex.query({
+    const chunks = await vectorIndex.query({
       vector: embedding,
       topK: limit,
       includeMetadata: true
     });
     
-    return results;
+    if (chunks.length === 0) {
+      return [];
+    }
+    
+    // Get unique source document keys
+    const sourceKeys = [...new Set(chunks.map(chunk => chunk.metadata?.source))].filter(Boolean);
+    
+    // Fetch the full documents from Redis
+    const fullDocuments = await Promise.all(
+      sourceKeys.map(async (key) => {
+        if (!key) return null;
+        
+        const doc = await redis.get(key as string);
+        if (!doc) return null;
+        
+        try {
+          // Parse the document
+          const parsedDoc = typeof doc === 'string' ? JSON.parse(doc) : doc;
+          
+          // Get the relevant chunks for this document
+          const relevantChunks = chunks.filter(chunk => chunk.metadata?.source === key);
+          const avgScore = relevantChunks.reduce((sum, chunk) => sum + (chunk.score || 0), 0) / relevantChunks.length;
+          
+          return {
+            score: avgScore,
+            title: parsedDoc.title || '',
+            text: parsedDoc.text || '',
+            source: key,
+            chunks: relevantChunks.length,
+            metadata: {
+              id: typeof key === 'string' ? key.replace('docs:', '') : '',
+              fileName: parsedDoc.fileName || '',
+              vectorized: parsedDoc.vectorized || false,
+              vectorizedAt: parsedDoc.vectorizedAt || '',
+            }
+          };
+        } catch (error) {
+          console.error(`Error parsing document for key ${key}:`, error);
+          return null;
+        }
+      })
+    );
+    
+    // Filter out null results and sort by score
+    return fullDocuments
+      .filter((doc): doc is NonNullable<typeof doc> => doc !== null)
+      .sort((a, b) => b.score - a.score);
   } catch (error) {
     console.error('Error searching knowledge base:', error);
     return [];
@@ -146,16 +209,19 @@ export async function POST(req: Request) {
               return { found: false, message: "No relevant information found in knowledge base" };
             }
             
-            const formattedResults = results.map(result => ({
-              score: result.score,
-              text: result.metadata?.text || "",
-              title: result.metadata?.title || "",
-              source: result.metadata?.source || "",
+            // Format sources info for citation
+            const formattedSources = results.map(doc => ({
+              title: doc.title,
+              id: doc.source,
+              displayId: doc.metadata?.id || doc.source,
+              score: doc.score,
+              chunks: doc.chunks
             }));
             
             return { 
               found: true, 
-              results: formattedResults
+              results,
+              sources: formattedSources
             };
           },
         }),

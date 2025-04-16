@@ -149,7 +149,7 @@ export function ChatSidebar({
                                                 {message.content}
                                             </ReactMarkdown>
                                         ) : message.toolInvocations && message.toolInvocations.length > 0 ? (
-                                            <div className="text-sm text-gray-500 italic">
+                                            <div className="-mt-6 text-gray-500 italic">
                                                 Searching knowledge base...
                                             </div>
                                         ) : null}
