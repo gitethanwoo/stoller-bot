@@ -1,26 +1,17 @@
-import { openai } from "@ai-sdk/openai";
-
-import { streamText, convertToCoreMessages, smoothStream } from "ai";
+import { openai as aiSdkOpenai } from "@ai-sdk/openai";
+import { OpenAI } from "openai";
+import { Index } from "@upstash/vector";
+import { streamText, convertToCoreMessages, smoothStream, tool } from "ai";
 import { z } from "zod";
 
-// Cost constants
-const COSTS = {
-  'gpt-4o': {
-    input: 2.50,
-    cachedInput: 1.25,
-    output: 10.00,
-  },
-  'gpt-4.1-mini': {
-    input: 0.400,
-    cachedInput: 0.10,
-    output: 0.160,
-  },
-  'o3-mini': {
-    input: 1.10,
-    cachedInput: 0.55,
-    output: 4.40,
-  }
-} as const;
+// Initialize OpenAI client for embeddings
+const openai = new OpenAI();
+
+// Initialize vector index
+const vectorIndex = new Index({
+  url: process.env.UPSTASH_VECTOR_REST_URL!,
+  token: process.env.UPSTASH_VECTOR_REST_TOKEN!,
+});
 
 const BenefitsDataSchema = z
   .array(
@@ -51,16 +42,36 @@ const RequestSchema = z.object({
   benefitsData: BenefitsDataSchema,
 });
 
-const SYSTEM_PROMPT = `You are a knowledgeable chatbot assistant dedicated to providing insights about the included information. Your role is to answer questions accurately and concisely, maintaining a casual yet professional tone. Express enthusiasm and a genuine interest in helping users understand the information, while ensuring your responses are grounded in the information explicitly provided in the context. While we present the research and findings, currently, we do not make any explicit or implicit recommendations about the best path forward. Your job is to help users understand the research and findings, but do not be opinionated. Give multiple perspectives and let the user decide. 
+const SYSTEM_PROMPT = `# Role and Purpose
+You are a knowledgeable chatbot assistant named StollerBot dedicated to providing insights about the Stoller Report. Your purpose is to provide accurate, helpful information based solely on the content in your knowledge base.
 
-When formatting responses:
+# Core Behaviors
+- PERSISTENCE: Keep going until the user's query is completely resolved. Only end your turn when you have provided a complete answer.
+- TOOL USAGE: For EVERY user question, you should ALWAYS search the knowledge base first using the searchKnowledgeBase tool. If you are not sure about any information, use this tool: do NOT guess or make up an answer.
+- PLANNING: Before searching, take a moment to formulate an effective search query. After receiving search results, carefully analyze them before constructing your response.
+
+# Information Guidelines
+- Only provide information that is found in the search results.
+- If the search doesn't return relevant information, politely inform the user that you don't have that specific information.
+- Do not hallucinate information or make up details that were not in the search results.
+- Be transparent about uncertainties and suggest ways users might rephrase their questions if needed.
+
+# Communication Style
+- Answer questions accurately and concisely
+- Maintain a casual yet professional tone
+- Express enthusiasm and genuine interest in helping users understand the information
+
+# Response Formatting
+## Structure
 - Start with a brief introduction paragraph (1-2 sentences)
 - Use headers to organize information hierarchically:
   * Use ### for main sections
   * Use #### for subsections
   * Never skip header levels
+
+## Lists and Tables
 - Keep lists concise and use them sparingly:
-  * Always use markdown asterisks (* ) for bullet points, never use (•) or other symbols
+  * Always use markdown asterisks (* ) for bullet points
   * Use bullet points only for brief, related items
   * Prefer headers over bullet points for major topics
 - Use tables for comparing data:
@@ -71,42 +82,54 @@ When formatting responses:
     | Model | Description | Key Benefit |
     |-------|------------|-------------|
     | PBS | Sponsorship-based | Free for all |
-- Format for readability:
-  * Break up dense text into smaller paragraphs
-  * Use bold (**text**) for emphasis, not for structure
-  * Add a line break between sections
+
+## Readability
+- Break up dense text into smaller paragraphs
+- Use bold (**text**) for emphasis, not for structure
+- Add a line break between sections
 - Avoid:
   * ASCII art or decorative elements
   * Nested lists deeper than one level
   * Bullet points for main topics (use headers instead)
-  * Special characters or symbols for formatting (stick to standard markdown)
+  * Special characters or symbols for formatting (stick to standard markdown)`;
 
-While the background context is highly informational, do not use too many formatting cues from it, as the data is a bit messy. Stick to classic, well-organized markdown with proper hierarchy.
-
-If you encounter any uncertainties, be transparent and suggest seeking clarification. Encourage users to elaborate on their questions if needed. Do not be lazy. Do not hallucinate. Answer the questions fully - do not leave out any pertinent information.`;
+// Function to search the vector database
+async function searchKnowledgeBase(query: string, limit: number = 5) {
+  try {
+    // Generate embedding for the query
+    const response = await openai.embeddings.create({
+      model: 'text-embedding-3-small',
+      input: query,
+      dimensions: 1536
+    });
+    
+    const embedding = response.data[0].embedding;
+    
+    // Search Upstash Vector
+    const results = await vectorIndex.query({
+      vector: embedding,
+      topK: limit,
+      includeMetadata: true
+    });
+    
+    return results;
+  } catch (error) {
+    console.error('Error searching knowledge base:', error);
+    return [];
+  }
+}
 
 export const maxDuration = 60;
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { messages, benefitsData = [] } = RequestSchema.parse(body);
-    const parsedBenefitsData = BenefitsDataSchema.parse(benefitsData);
+    const { messages } = RequestSchema.parse(body);
 
-    console.log(
-      `Processing chat with ${parsedBenefitsData.length} benefit documents`
-    );
+    console.log(`Processing chat request with ${messages.length} messages`);
 
-    // Format the benefits data into a string
-    const benefitsContext = benefitsData
-      .map(({ documentTitle, documentContext }) => {
-        return `Document: ${documentTitle}\nContext: ${documentContext}`;
-      })
-      .join('\n\n');
-
-    const model = "gpt-4.1-mini" as const;
     const result = await streamText({
-      model: openai(model),
+      model: aiSdkOpenai('gpt-4.1'),
       experimental_transform: smoothStream({
         delayInMs: 20,
         chunking: 'word',
@@ -114,34 +137,40 @@ export async function POST(req: Request) {
       messages: [
         {
           role: "system",
-          content: `${SYSTEM_PROMPT}\n\n*RAW BACKGROUND CONTEXT:*\n\n${benefitsContext}`,
+          content: SYSTEM_PROMPT,
         },
         ...convertToCoreMessages(messages),
       ],
-      onStepFinish: (stepResult) => {
-        const cachedPromptTokens = Number(stepResult.experimental_providerMetadata?.openai?.cachedPromptTokens ?? 0);
-        const nonCachedPromptTokens = Number(stepResult.usage.promptTokens) - cachedPromptTokens;
-        
-        const rates = COSTS[model];
-        const inputCost = (nonCachedPromptTokens * rates.input + cachedPromptTokens * rates.cachedInput) / 1_000_000;
-        const outputCost = (Number(stepResult.usage.completionTokens) * rates.output) / 1_000_000;
-        const totalCost = inputCost + outputCost;
-        
-        console.log('\n=== Chat Response Metrics ===');
-        console.log('Model:', model);
-        console.log('Token Usage:', {
-          promptTokens: stepResult.usage.promptTokens,
-          completionTokens: stepResult.usage.completionTokens,
-          totalTokens: stepResult.usage.totalTokens,
-          cachedPromptTokens
-        });
-        console.log('Estimated Cost:', {
-          inputCost: `$${inputCost.toFixed(4)}`,
-          outputCost: `$${outputCost.toFixed(4)}`,
-          totalCost: `$${totalCost.toFixed(4)}`
-        });
-        console.log('===========================\n');
-      }
+      tools: {
+        searchKnowledgeBase: tool({
+          description: "Search the knowledge base for relevant information to answer the user's question",
+          parameters: z.object({
+            query: z.string().describe("The user's question or search query"),
+          }),
+          execute: async ({ query }) => {
+            console.log("Searching knowledge base for:", query);
+            const results = await searchKnowledgeBase(query);
+            
+            // Format the results for the model
+            if (results.length === 0) {
+              return { found: false, message: "No relevant information found in knowledge base" };
+            }
+            
+            const formattedResults = results.map(result => ({
+              score: result.score,
+              text: result.metadata?.text || "",
+              title: result.metadata?.title || "",
+              source: result.metadata?.source || "",
+            }));
+            
+            return { 
+              found: true, 
+              results: formattedResults
+            };
+          },
+        }),
+      },
+      maxSteps: 5,
     });
 
     return result.toDataStreamResponse();

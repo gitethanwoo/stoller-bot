@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { Markdown } from "@/components/markdown";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Copy, Check } from "lucide-react";
+import { Copy, Check, Search } from "lucide-react";
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -148,14 +148,21 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
                     "animate-fade-in opacity-0"
                 )}
               >
-                <div className="overflow-x-hidden max-w-full">
-                  <Markdown>{message.content}</Markdown>
-                </div>
-                {message.role === "assistant" && (
-                  <div className="flex justify-start mt-2">
-                    <CopyButton text={message.content} />
+                {message.content.length > 0 ? (
+                  <div className="overflow-x-hidden max-w-full">
+                    <Markdown>{message.content}</Markdown>
+                    {message.role === "assistant" && (
+                      <div className="flex justify-start mt-2">
+                        <CopyButton text={message.content} />
+                      </div>
+                    )}
                   </div>
-                )}
+                ) : message.toolInvocations && message.toolInvocations.length > 0 ? (
+                  <div className="flex items-center space-x-2 text-sm text-gray-500 italic py-2">
+                    <Search className="h-4 w-4" />
+                    <span>Searching knowledge base...</span>
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>
@@ -169,7 +176,15 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
               </span>
             </div>
             <div className="rounded-lg w-full py-1">
-              <LoadingSequence />
+              {messages.length > 0 && 
+               messages[messages.length - 1].toolInvocations ? (
+                <div className="flex items-center space-x-2 text-sm text-gray-500 italic">
+                  <Search className="h-4 w-4 animate-pulse" />
+                  <span className="animate-pulse">Processing search results...</span>
+                </div>
+              ) : (
+                <LoadingSequence />
+              )}
             </div>
           </div>
         )}

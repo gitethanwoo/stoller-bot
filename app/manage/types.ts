@@ -4,6 +4,9 @@ export interface StoredDocument {
   title: string;
   text: string;
   redisKey?: string;
+  vectorized?: boolean;
+  vectorizedAt?: string;
+  vectorChunks?: number;
 }
 
 export interface EnrichedResult {

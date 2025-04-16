@@ -5,7 +5,6 @@ import { ChatSection } from "@/components/welcome/chat"
 import { WelcomeLayout } from "@/components/welcome/layout"
 import { useChat } from "ai/react"
 import { useBenefits } from "@/providers/benefits-provider"
-import { StoredDocument, ChatDocument } from "@/app/manage/types"
 import { useState } from "react"
 
 function Loading() {
@@ -16,16 +15,10 @@ function WelcomePage() {
   const [hasInteracted, setHasInteracted] = useState(false);
   const [isChatMinimized, setIsChatMinimized] = useState(false);
   const { benefits } = useBenefits();
-  const transformedBenefitsData = benefits.map((doc: StoredDocument): ChatDocument => ({
-    documentTitle: doc.title,
-    documentContext: doc.text,
-  }));
 
   const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
     api: "/api/chat-web",
-    body: {
-      benefitsData: transformedBenefitsData,
-    },
+    maxSteps: 2, // Enable multi-step for RAG knowledge base search
   });
 
   const handleFormSubmit = async (e: React.FormEvent) => {

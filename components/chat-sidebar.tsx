@@ -10,7 +10,7 @@ import { ChatInput } from "@/components/ui/chat-input";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { FileData } from "@/types/file-data";
-import { StoredDocument, ChatDocument } from "@/app/manage/types";
+import { StoredDocument } from "@/app/manage/types";
 
 
 interface ChatSidebarProps {
@@ -53,17 +53,9 @@ export function ChatSidebar({
     const fileInputRef = useRef<HTMLInputElement>(null);
     const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-    // Transform benefits data to match the chat API schema
-    const transformedBenefitsData = benefitsData.map((doc): ChatDocument => ({
-        documentTitle: doc.title,
-        documentContext: doc.text,
-    }));
-
-    const { messages, input, handleInputChange, handleSubmit } = useChat({
+    const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
         api: "/api/chat-web",
-        body: {
-            benefitsData: transformedBenefitsData,
-        },
+        maxSteps: 2, // Enable multi-step for RAG pipeline
     });
 
     useEffect(() => {
@@ -152,16 +144,40 @@ export function ChatSidebar({
                                                 : "rounded-lg w-full py-1"
                                         )}
                                     >
-                                        <ReactMarkdown
-                                            remarkPlugins={[remarkGfm]}
-                                            components={markdownComponents}
-                                        >
-                                            {message.content}
-                                        </ReactMarkdown>
+                                        {message.content.length > 0 ? (
+                                            <ReactMarkdown
+                                                remarkPlugins={[remarkGfm]}
+                                                components={markdownComponents}
+                                            >
+                                                {message.content}
+                                            </ReactMarkdown>
+                                        ) : message.toolInvocations && message.toolInvocations.length > 0 ? (
+                                            <div className="text-sm text-gray-500 italic">
+                                                Searching knowledge base...
+                                            </div>
+                                        ) : null}
                                     </div>
                                 </div>
                             </div>
                         ))}
+                        
+                        {/* Show loading state */}
+                        {isLoading && (
+                            <div className="flex justify-start items-start">
+                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-2 shadow-inner">
+                                    <span role="img" aria-label="robot" className="text-xl">
+                                        🤖
+                                    </span>
+                                </div>
+                                <div className="rounded-lg w-full py-1">
+                                    <div className="text-sm text-gray-500 italic animate-pulse">
+                                        {messages.length > 0 && 
+                                         messages[messages.length - 1].toolInvocations ? 
+                                         "Processing search results..." : "Thinking..."}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     <div className="border-t px-4 pt-6">
@@ -170,7 +186,7 @@ export function ChatSidebar({
                             onChange={handleInputChange}
                             onSubmit={handleFormSubmit}
                             placeholder="Ask me anything..."
-                            disabled={!benefitsData.length}
+                            disabled={isLoading}
                             onFileChange={handleFileChange}
                             files={files}
                         />

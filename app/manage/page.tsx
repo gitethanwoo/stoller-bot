@@ -14,6 +14,7 @@ import { useBenefits } from '@/providers/benefits-provider';
 import { useFileUpload } from '@/hooks/useFileUpload';
 import { toast } from "sonner";
 import { StoredDocument, EnrichedResult } from './types';
+import { VectorSearch } from "./components/vector-search";
 
 export default function TestEnrich() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -225,11 +226,18 @@ export default function TestEnrich() {
         />
       )}
 
-      <KnowledgeBaseTable
-        documents={currentDocs}
-        onEdit={handleEdit}
-        onDelete={handleDeleteRequest}
-      />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="md:col-span-2">
+          <KnowledgeBaseTable
+            documents={currentDocs}
+            onEdit={handleEdit}
+            onDelete={handleDeleteRequest}
+            authToken={authToken}
+          />
+        </div>
+        
+        <VectorSearch authToken={authToken} />
+      </div>
 
       <DeleteDialog
         isOpen={deleteConfirmOpen}
