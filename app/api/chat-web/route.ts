@@ -182,7 +182,7 @@ export async function POST(req: Request) {
     console.log(`Processing chat request with ${messages.length} messages`);
 
     const result = await streamText({
-      model: aiSdkOpenai('gpt-4.1'),
+      model: aiSdkOpenai('o4-mini'),
       experimental_transform: smoothStream({
         delayInMs: 20,
         chunking: 'word',
