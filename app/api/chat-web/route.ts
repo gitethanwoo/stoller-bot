@@ -183,8 +183,10 @@ export async function POST(req: Request) {
 
     const result = await streamText({
       model: aiSdkOpenai('o4-mini'),
+      temperature: 1,
       experimental_transform: smoothStream({
         delayInMs: 20,
+        
         chunking: 'word',
       }),
       messages: [
@@ -232,8 +234,9 @@ export async function POST(req: Request) {
     return result.toDataStreamResponse();
   } catch (error) {
     console.error("Chat API error:", error);
+    const message = error instanceof Error ? error.message : "Failed to process chat request";
     return Response.json(
-      { error: "Failed to process chat request" },
+      { error: message },
       { status: 500 }
     );
   }
